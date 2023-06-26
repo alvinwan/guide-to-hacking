@@ -1,5 +1,5 @@
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QEvent
+from qtpy.QtWidgets import QApplication
+from qtpy.QtCore import QEvent
 
 
 class MyApp(QApplication): # subclass application
