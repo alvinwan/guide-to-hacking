@@ -1,0 +1,5 @@
+py2app
+pyqt6
+pyqt6-tools
+qtpy
+PyQtWebEngine
