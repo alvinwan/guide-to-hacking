@@ -1,0 +1,7 @@
+<form method="post">  <!-- when form is submitted, send a POST request -->
+    <input name="text">  <!-- input field with name 'text' -->
+    <input type="submit" value="Add todo">  <!-- Submit button. The buttons says 'Add todo' -->
+</form>
+{% for todo in todos %}
+<li>{{ todo[1] }}</li>
+{% endfor %}
