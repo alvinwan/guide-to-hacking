@@ -1,2 +1,0 @@
-flask-login==0.6.2
-cryptography==41.0.1
