@@ -1,0 +1,4 @@
+flask
+pywebview
+py2app
+qtpy
