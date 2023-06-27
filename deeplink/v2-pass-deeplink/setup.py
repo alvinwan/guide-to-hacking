@@ -1,6 +1,7 @@
 from setuptools import setup
 
-OPTIONS = {  # notice argv_emulation has been removed
+OPTIONS = {
+    'argv_emulation': True,  # pass sys.argv to the app
     'plist': {
         'CFBundleURLTypes': [  # for custom URL schemes (i.e., deeplinks)
             {
@@ -12,7 +13,7 @@ OPTIONS = {  # notice argv_emulation has been removed
 }
 
 setup(
-    app=['app.py'],
+    app=['app.py'],  # your main application
     options={'py2app': OPTIONS},
-    setup_requires=['py2app', 'pyqt6'],  # add other dependencies here
+    setup_requires=['py2app', 'pywebview'],  # add other dependencies here
 )
