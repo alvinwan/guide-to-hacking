@@ -1,1 +1,2 @@
-pywebview
+# tested with Python 3.10.6
+pywebview==4.2.2

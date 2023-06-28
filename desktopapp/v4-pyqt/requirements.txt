@@ -1,4 +1,6 @@
-flask
-pywebview
-py2app
-qtpy
+# tested with Python 3.10.6
+pywebview==4.2.2
+Flask==2.3.2
+py2app==0.28.6
+qtpy==2.3.1
+pyqt6==6.5.1
