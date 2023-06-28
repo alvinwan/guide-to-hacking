@@ -1,4 +1,4 @@
-# tested with Python 3.10.6
+# tested with Python 3.11.4
 pywebview==4.2.2
 Flask==2.3.2
 py2app==0.28.6
