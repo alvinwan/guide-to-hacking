@@ -14,6 +14,6 @@ OPTIONS = {
 setup(
     app=['app.py'],  # your main application
     options={'py2app': OPTIONS},
-    setup_requires=['py2app', 'pywebview', 'qtpy'],  # add other dependencies here
+    setup_requires=['py2app', 'pywebview', 'qtpy', 'pyqt6', 'PyQt6-WebEngine'],
     data_files=['client_secrets.json'],
 )

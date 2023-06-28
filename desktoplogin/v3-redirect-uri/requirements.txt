@@ -2,4 +2,3 @@
 Flask==2.3.2
 simple-flask-google-login==0.3.0
 pywebview==4.2.2
-cryptography==41.0.1
