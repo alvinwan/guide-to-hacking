@@ -2,23 +2,19 @@ from flask import Flask, session, url_for
 from simple_flask_google_login import SimpleFlaskGoogleLogin
 import webview
 import webbrowser
-import webview.platforms.qt
+import sys
 from qtpy.QtWidgets import QApplication
 from qtpy.QtCore import QEvent
-from urllib.parse import urlparse, parse_qs
+import webview.platforms.qt
 
 
-def event_handler(self, event: QEvent): # override the event method
-    if event.type() == QEvent.Type.FileOpen: # filter the File Open event
-        url = event.url()
-        url = urlparse(url.toString())
-        params = parse_qs(url.query)
-        if 'code' in params:
-            code = params['code'][0]
-            state = params['state'][0]
-            window.load_url(f"/login/callback?code={code}&state={state}")
-    return super(QApplication, self).event(event)
-webview.platforms.qt.QApplication.event = event_handler
+class MyApp(QApplication):
+    def event(self, event: QEvent):
+        if event.type() == QEvent.Type.FileOpen:
+            url = event.url()
+            if 'code=' in url.query():
+                window.load_url(f"/login/callback?{url.query()}")
+        return super(QApplication, self).event(event)
 
 
 def url_handler(url):
@@ -42,5 +38,6 @@ def index():
 
 
 if __name__ == '__main__':
+    application = MyApp(sys.argv)
     window = webview.create_window('Flask example', app)
     webview.start(gui='qt')

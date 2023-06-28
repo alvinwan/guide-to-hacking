@@ -1,18 +1,18 @@
-from flask import Flask, session, url_for
+from flask import Flask, session
 from simple_flask_google_login import SimpleFlaskGoogleLogin
 import webview
 import webbrowser
-import webview.platforms.qt
+import sys
 from qtpy.QtWidgets import QApplication
 from qtpy.QtCore import QEvent
-from urllib.parse import urlparse, parse_qs
+import webview.platforms.qt  # needed for us to define a custom application
 
 
-def event_handler(self, event: QEvent): # override the event method
-    if event.type() == QEvent.Type.FileOpen: # filter the File Open event
-        print(event.url())
-    return super(QApplication, self).event(event)
-webview.platforms.qt.QApplication.event = event_handler
+class MyApp(QApplication):
+    def event(self, event: QEvent): # override the event method
+        if event.type() == QEvent.Type.FileOpen: # filter the File Open event
+            print(event.url())
+        return super(QApplication, self).event(event)
 
 
 def url_handler(url):
@@ -36,5 +36,6 @@ def index():
 
 
 if __name__ == '__main__':
+    application = MyApp(sys.argv)
     webview.create_window('Flask example', app)
     webview.start(gui='qt')
