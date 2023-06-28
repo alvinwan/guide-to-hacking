@@ -1,10 +1,6 @@
-"""Simple setup script for actually building your application. See README"""
-
 from setuptools import setup
 
-APP = ['app.py']  # your main application
-OPTIONS = {
-    # 'argv_emulation': True,  # pass sys.argv to the app
+OPTIONS = {  # notice argv_emulation has been removed
     'plist': {
         'CFBundleURLTypes': [  # for custom URL schemes (i.e., deeplinks)
             {
@@ -13,12 +9,10 @@ OPTIONS = {
             },
         ],
     },
-    'strip': True,
-    'includes': ['WebKit', 'Foundation', 'webview'],
 }
 
 setup(
-    app=APP,
+    app=['app.py'],
     options={'py2app': OPTIONS},
-    setup_requires=['py2app', 'pyqt6'],  # add other dependencies here
+    setup_requires=['py2app', 'pywebview', 'qtpy', 'pyqt6', 'PyQt6-WebEngine'],  # add pyqt to dependencies
 )

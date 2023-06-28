@@ -14,5 +14,5 @@ OPTIONS = {  # notice argv_emulation has been removed
 setup(
     app=['app.py'],
     options={'py2app': OPTIONS},
-    setup_requires=['py2app', 'pyqt6'],  # add pyqt to dependencies
+    setup_requires=['py2app', 'qtpy', 'pyqt6'],  # add pyqt to dependencies
 )
