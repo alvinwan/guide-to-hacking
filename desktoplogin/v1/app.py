@@ -12,7 +12,7 @@ login = SimpleFlaskGoogleLogin(app)
 def index():
     if 'name' in session:
         return f"Hello {session['name']}! <a href='/logout'>Logout</a>"
-    return "<a href='/login'>Login</a>"
+    return f"<a href='/login'>Login</a>"
 
 
 if __name__ == '__main__':

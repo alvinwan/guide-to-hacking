@@ -6,7 +6,7 @@ import webbrowser
 
 def url_handler(url):
     webbrowser.open(url)
-    return f"If you aren't redirected automatically, click <a href='{url}' target='_blank'>here</>"
+    return f"If you aren't redirected automatically, click <a href='{url}' target='_blank'>here</a>"
 
 
 app = Flask("Google Login App")
@@ -18,8 +18,7 @@ login = SimpleFlaskGoogleLogin(app, authorization_url_handler=url_handler)
 def index():
     if 'name' in session:
         return f"Hello {session['name']}! <a href='/logout'>Logout</a>"
-    import sys
-    return f"<html style='background-color:gray'><a href='/login'>Login</a> {sys.argv}</html>"
+    return f"<a href='/login'>Login</a>"
 
 
 if __name__ == '__main__':
