@@ -12,6 +12,14 @@ const char *getAddressBookFirstEntry() {
     return [displayName UTF8String];
 }
 
+// This below main function is optional. This is useful if you'd like to debug
+// and ensure that the above function operates correctly. This way, you can
+// run the `getAddressBookFirstEntry` function in Objective-C, independent of
+// the Python binding code.
+//
+// If you *do decide to write the below function for testing, note that we had
+// to wrap the `getAddressBookFirstEntry`'s returned string with an ObjC
+// NSString before logging.
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
         NSString *string = [[NSString alloc] initWithUTF8String: getAddressBookFirstEntry()];
