@@ -1,4 +1,7 @@
 ```
-# Compile the Objective-C code and run the executable
-clang -framework Foundation -framework AddressBook book.m -o book && ./book
+# Compile the Objective-C code
+clang -framework Foundation HelloWorld.m -o helloworld
+
+# Run the executable
+./helloworld
 ```
