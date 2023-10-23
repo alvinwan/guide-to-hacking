@@ -2,6 +2,7 @@
 #include <Python.h>
 #include <stdio.h>
 
+// Create a C function that wraps the Objective-C sayHello
 static PyObject* sayHello(PyObject* self, PyObject* args) {
     // Load the Objective-C dynamic library
     void* handle = dlopen("HelloWorld.dylib", RTLD_LAZY);
@@ -23,10 +24,12 @@ static PyObject* sayHello(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
+// Define metadata for the *Python sayHello function
 static PyMethodDef methods[] = {
     {"sayHello", sayHello, METH_NOARGS, "Says 'Hello, World!'"},
 };
 
+// Define metadata for the *Python HelloWorld module
 static struct PyModuleDef HelloWorld_module = {
     PyModuleDef_HEAD_INIT,
     "HelloWorld",   // Name of the module
@@ -35,6 +38,7 @@ static struct PyModuleDef HelloWorld_module = {
     methods
 };
 
+// Initialize both the HelloWorld module and sayHello function
 PyMODINIT_FUNC PyInit_HelloWorld(void) {
     return PyModule_Create(&HelloWorld_module);
 }

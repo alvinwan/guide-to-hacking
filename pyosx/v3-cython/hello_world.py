@@ -1,3 +1,5 @@
-import HelloWorld  # Load our extension module
+# Load our extension module
+import HelloWorld
 
-HelloWorld.sayHello()  # run the Python binding for the Objective-C function
+# Run the Python binding for the Objective-C function
+HelloWorld.sayHello()
