@@ -1,3 +1,3 @@
-import Say  # Load our extension module
+import Say
 
-Say.say("I wish watermelons came in purple")  # run the Python binding for the Objective-C function
+Say.say("I wish watermelons came in purple")
