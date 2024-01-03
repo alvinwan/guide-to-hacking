@@ -3,10 +3,8 @@ Save Wordle from its impending doom. Find more 5-letter words.
 """
 
 import csv
-import nltk
 import string
 import urllib.request
-nltk.download('averaged_perceptron_tagger')
 
 
 def read(fname):
@@ -18,26 +16,13 @@ def fiveletters(words):
     return [word for word in words if len(word) == 5]
 
 
-def propernouns(words):
-    return [word for word, tag in nltk.tag.pos_tag(words)
-            if tag not in ('NNP', 'NNPS')]
-
-
 def report(name, words, dst, use_nltk=False):
     filtered = fiveletters(words)
-    print(f"[{name}] {len(words)} => {len(filtered)}" + (
-        f" => {len(propernouns(filtered))}" if use_nltk else ""))
+    print(f"[{name}] {len(words)} => {len(filtered)}")
     with open(dst, 'w') as f:
         for word in filtered:
             f.write(f"{word}\n")
     return set(filtered)
-
-
-urllib.request.urlretrieve('https://www.mit.edu/~ecprice/wordlist.10000', 'raw-mit.txt')
-mit = report('mit', read('raw-mit.txt'), 'out-mit.txt', use_nltk=True)
-MIT = report('MIT', [w.title() for w in read('raw-mit.txt')], 'out-MIT.txt', use_nltk=True)
-
-unix = report('Unix', read('/usr/share/dict/words'), 'out-unix.txt', use_nltk=True)
 
 
 def read_websters(fname):
