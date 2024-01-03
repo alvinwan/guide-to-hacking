@@ -23,18 +23,14 @@ def propernouns(words):
             if tag not in ('NNP', 'NNPS')]
 
 
-def report(name, step1, dst, use_nltk=False):
-    step2 = fiveletters(step1)
-    if use_nltk:
-        final = step3 = propernouns(step2)
-        print(f"[{name}] {len(step1)} => {len(step2)} => {len(step3)}")
-    else:
-        final = step2
-        print(f"[{name}] {len(step1)} => {len(step2)}")
+def report(name, words, dst, use_nltk=False):
+    filtered = fiveletters(words)
+    print(f"[{name}] {len(words)} => {len(filtered)}" + (
+        f" => {len(propernouns(filtered))}" if use_nltk else ""))
     with open(dst, 'w') as f:
-        for word in final:
+        for word in filtered:
             f.write(f"{word}\n")
-    return set(final)
+    return set(filtered)
 
 
 urllib.request.urlretrieve('https://www.mit.edu/~ecprice/wordlist.10000', 'raw-mit.txt')
