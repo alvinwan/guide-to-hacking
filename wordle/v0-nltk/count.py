@@ -2,9 +2,7 @@
 Save Wordle from its impending doom. Find more 5-letter words.
 """
 
-import csv
 import nltk
-import string
 import urllib.request
 nltk.download('averaged_perceptron_tagger')
 
@@ -14,18 +12,10 @@ def read(fname):
         return f.read().splitlines()
 
 
-def fiveletters(words):
-    return [word for word in words if len(word) == 5]
-
-
-def propernouns(words):
-    return [word for word, tag in nltk.tag.pos_tag(words)
-            if tag not in ('NNP', 'NNPS')]
-
-
 def report(name, words, dst):
-    step2 = fiveletters(words)
-    step3 = propernouns(step2)
+    step2 = [word for word in words if len(word) == 5]
+    step3 = [word for word, tag in nltk.tag.pos_tag(words)
+             if tag not in ('NNP', 'NNPS')]
     print(f"[{name}] {len(words)} => {len(step2)} => {len(step3)}")
     with open(dst, 'w') as f:
         for word in step2:

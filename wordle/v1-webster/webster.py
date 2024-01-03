@@ -12,12 +12,8 @@ def read(fname):
         return f.read().splitlines()
 
 
-def fiveletters(words):
-    return [word for word in words if len(word) == 5]
-
-
-def report(name, words, dst, use_nltk=False):
-    filtered = fiveletters(words)
+def report(name, words, dst):
+    filtered = [word for word in words if len(word) == 5]
     print(f"[{name}] {len(words)} => {len(filtered)}")
     with open(dst, 'w') as f:
         for word in filtered:
