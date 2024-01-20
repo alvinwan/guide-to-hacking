@@ -25,19 +25,23 @@ def main():
         play(player, ui=True)
         return
     if 'alwaysdown' in args.agent:
-        player = lambda board: 'd' # score: 200, largest: 19 (10k iters)
+        player = lambda board: 'd' # score: 200/492, largest: 19/32 (avg/max) over 10k iters
         print(f"alwaysdown: {get_play_score(player, args.num_trials, args.stat):.2f}")
     if 'trulyrandom' in args.agent:
-        player = trulyrandom # score: 612, largest: 67 (10k iters)
+        player = trulyrandom # score: 612/2300, largest: 67/256 (avg/max) over 10k iters
         print(f"trulyrandom: {get_play_score(player, args.num_trials, args.stat):.2f}")
+    if 'cycleadws' in args.agent:
+        player = cycleadws # score: 791/2988, largest: 80/256 (avg/max) over 10k iters
+        print(f"cyclewasd: {get_play_score(player, args.num_trials, args.stat):.2f}")
     if 'cyclewasd' in args.agent:
-        player = cyclewasd # score: 1840, largest: 175 (10k iters)
+        player = cyclewasd # score: 1840/6400, largest: 175/512 (avg/max) over 10k iters
         print(f"cyclewasd: {get_play_score(player, args.num_trials, args.stat):.2f}")
     
 
 def get_play_score(player, num_trials, stat='score'):
     scores = [play(player, ui=False)[stat] for _ in range(num_trials)]
     return sum(scores) / float(len(scores))
+    # return max(scores)
 
 
 def play(player, ui=True):
@@ -240,6 +244,11 @@ state = {}
 def cyclewasd(board):
     state['index'] = (state.get('index', 0) + 1) % 4
     return 'wasd'[state['index']]
+
+
+def cycleadws(board):
+    state['index'] = (state.get('index', 0) + 1) % 4
+    return 'adws'[state['index']]
 
 
 def trulyrandom(board):
