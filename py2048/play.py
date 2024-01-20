@@ -4,7 +4,7 @@ Other implementations of 2048 in Python:
 https://github.com/yangshun/2048-python/tree/master
 https://gist.github.com/wynand1004/5e06ce54a430619785e355fd9b60fff3
 
-Integrations with AI, received poorly:
+Integrations with AI (received poorly: https://news.ycombinator.com/item?id=35785005)
 https://github.com/riley-ball/2048ai
 https://github.com/inishchith/2048
 """
@@ -17,35 +17,43 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--agent', default='user')
     parser.add_argument('-n', '--num_trials', default=10)
+    parser.add_argument('-s', '--stat', default='score')
     args = parser.parse_args()
 
     if args.agent == 'user':
         player = lambda board: input('[wasd]:')
         play(player, ui=True)
         return
-    elif args.agent == 'alwaysdown':
-        player = lambda board: 'd' # 19
-    elif args.agent == 'trulyrandom':
-        player = trulyrandom # 66
-    elif args.agent == 'cyclewasd':
-        player = cyclewasd # 179
+    if 'alwaysdown' in args.agent:
+        player = lambda board: 'd' # score: 200, largest: 19
+        print(f"alwaysdown: {get_play_score(player, args.num_trials, args.stat):.2f}")
+    if 'trulyrandom' in args.agent:
+        player = trulyrandom # score: 400, largest: 66
+        print(f"trulyrandom: {get_play_score(player, args.num_trials, args.stat):.2f}")
+    if 'cyclewasd' in args.agent:
+        player = cyclewasd # score: 2260, largest: 179
+        print(f"cyclewasd: {get_play_score(player, args.num_trials, args.stat):.2f}")
     
 
-    scores = [play(player, ui=False) for _ in range(args.num_trials)]
-    print(f"Score: {sum(scores) / float(len(scores)):.2f}")
+def get_play_score(player, num_trials, stat='score'):
+    scores = [play(player, ui=False)[stat] for _ in range(num_trials)]
+    return sum(scores) / float(len(scores))
 
 
 def play(player, ui=True):
     """Play game of 2048 with user."""
     board = make_board()
+    state = {'score': 0}
     while not is_full(board):
         spawn(board)
         if ui:
             show(board, pretty=True)
         while (move := player(board)) not in ('w', 'a', 's', 'd'):
             pass
-        board = shift(board, move)
-    return largest(board)
+        board = shift(board, move, state)
+    state['board'] = board
+    state['largest'] = largest(board)
+    return state
 
 
 def make_board(D=4):
@@ -58,7 +66,7 @@ def is_full(board):
     return all([all([item != 0 for item in row]) for row in board])
 
 
-def shift(board, direction):
+def shift(board, direction, state={}):
     """
     Shift all items in a certain cardinal direction, merging any neighboring
     identical numbers after the shift.
@@ -88,13 +96,13 @@ def shift(board, direction):
     """
     direction = direction.lower()
     if direction == 'a':  # left
-        return shift_left(board)
+        return shift_left(board, state)
     if direction == 'w':  # up
-        return rotate(shift_left(rotate(board, False)))
+        return rotate(shift_left(rotate(board, False), state))
     if direction == 'd':  # right
-        return rotate(rotate(shift_left(rotate(rotate(board))), False), False)
+        return rotate(rotate(shift_left(rotate(rotate(board)), state), False), False)
     if direction == 's':  # down
-        return rotate(shift_left(rotate(board)), False)
+        return rotate(shift_left(rotate(board), state), False)
     raise NotImplementedError('Invalid move')
 
 
@@ -148,7 +156,7 @@ def rotate(board, cw=True):
     return new_board
 
 
-def shift_left(board):
+def shift_left(board, state={}):
     """
     >>> board = make_board()
     >>> populate_sample_board(board)
@@ -173,6 +181,7 @@ def shift_left(board):
         for item in row:
             if candidate != 0 and item == candidate:
                 new_row.append(candidate * 2)
+                state['score'] = state.get('score', 0) + candidate * 2
                 candidate = 0
             else:
                 if candidate != 0:
