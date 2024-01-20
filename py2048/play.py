@@ -16,7 +16,7 @@ import argparse
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--agent', default='user')
-    parser.add_argument('-n', '--num_trials', default=10)
+    parser.add_argument('-n', '--num_trials', default=10, type=int)
     parser.add_argument('-s', '--stat', default='score')
     args = parser.parse_args()
 
@@ -25,13 +25,13 @@ def main():
         play(player, ui=True)
         return
     if 'alwaysdown' in args.agent:
-        player = lambda board: 'd' # score: 200, largest: 19
+        player = lambda board: 'd' # score: 200, largest: 19 (10k iters)
         print(f"alwaysdown: {get_play_score(player, args.num_trials, args.stat):.2f}")
     if 'trulyrandom' in args.agent:
-        player = trulyrandom # score: 400, largest: 66
+        player = trulyrandom # score: 612, largest: 67 (10k iters)
         print(f"trulyrandom: {get_play_score(player, args.num_trials, args.stat):.2f}")
     if 'cyclewasd' in args.agent:
-        player = cyclewasd # score: 2260, largest: 179
+        player = cyclewasd # score: 1840, largest: 175 (10k iters)
         print(f"cyclewasd: {get_play_score(player, args.num_trials, args.stat):.2f}")
     
 
