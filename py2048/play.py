@@ -251,12 +251,6 @@ def mixtral(board, state):
 
 
 @register
-def llama2(board, state):
-    state['response'] = get_huggingface_move('meta-llama/Llama-2-70b-chat-hf', board)
-    return state['response']['move']
-
-
-@register
 def mistral(board, state):
     state['response'] = get_huggingface_move('mistralai/Mistral-7B-Instruct-v0.2', board)
     return state['response']['move']
