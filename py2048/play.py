@@ -40,6 +40,7 @@ def main():
     parser.add_argument('agent', default=[], nargs='*', choices=list(PLAYERS.keys()) + ['all'], help="Which agents to run. Use 'user' to play yourself")
     parser.add_argument('-n', '--num_trials', default=10, type=int, help="How many trials to run for each agent. 'user' is only run once.")
     parser.add_argument('-s', '--stat', default=['score', 'largest'], action='append', help="Which statistics to report.")
+    parser.add_argument('--seed', type=int, help='Seed first trial with this')
     args = parser.parse_args()
 
     should_write_headers = False
@@ -57,7 +58,7 @@ def main():
             if not should_execute:
                 continue
             num_trials = 1 if name == 'user' else args.num_trials
-            statistics = get_play_score(player, num_trials, args.stat)
+            statistics = get_play_score(player, num_trials, args.stat, args.seed)
             print(f"{name}: {statistics}")
             if writer is None:
                 writer = csv.DictWriter(f, sorted(statistics.keys()))
@@ -66,15 +67,16 @@ def main():
             writer.writerow(statistics)
 
 
-def get_play_score(player, num_trials, stats=('score', 'largest')):
+def get_play_score(player, num_trials, stats=('score', 'largest'), seed=123):
     """Calculate statistics (min/mean/max)"""
-    random.seed(123)
+    random.seed(seed)
     final = {
         'name': player.__name__,
         'path': f"out/{player.__name__}-{time.time()}.md",
         'num_trials': num_trials,
+        'seed': seed,
     }
-    logger = get_game_logger(final['path'])
+    logger = get_game_logger(final['path'], final)
     info = [play(player, callback=logger) for _ in range(num_trials)]
     for stat in stats:
         scores = [item[stat] for item in info]
@@ -84,11 +86,11 @@ def get_play_score(player, num_trials, stats=('score', 'largest')):
     return final
 
 
-def get_game_logger(path):
+def get_game_logger(path, metadata):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'a') as f:
         # write frontmatter
-        f.write(f"---\nTime: {time.time()}\n---\n\n")
+        f.write(f"---\nTime: {time.time()}\nSeed: {metadata['seed']}\n---\n\n")
 
     def log_game_move(move, board, state):
         # write move data
@@ -212,7 +214,7 @@ Game:
 You:"""
 
 
-def huggingface(model_id, prompt):
+def huggingface(model_id, prompt, temperature=1.):
     """
     Query an LLM hosted on Huggingface
     
@@ -221,7 +223,13 @@ def huggingface(model_id, prompt):
     """
     url = f"https://api-inference.huggingface.co/models/{model_id}"
     headers = {"Authorization": f"Bearer {os.environ['HUGGINGFACE_API_KEY']}"}
-    response = requests.post(url, headers=headers, json={'inputs': prompt})
+    response = requests.post(url, headers=headers, json={
+        'inputs': prompt,
+        'parameters': {
+            'temperature': temperature,
+            'use_cache': False,
+        }
+    })
     response = response.json()
     if 'error' in response:
         raise RuntimeError(response['error'])
@@ -233,8 +241,13 @@ def get_move(model, model_id, board):
     Query an LLM hosted on Huggingface for its 2048 move.
     """
     prompt = PROMPT.format(board=stringify(board, pretty=True))
-    response = model(model_id, prompt)
-    move, justification = response.split('---')[0].strip().split('\n', 1)
+    move, temperature = '', 1.0
+    while not move:
+        try:
+            response = model(model_id, prompt, temperature=temperature)
+            move, justification = response.split('---')[0].strip().split('\n', 1)
+        except ValueError:  # ran into a parsing error
+            temperature *= 0.8
     return {'move': move.strip()[0], 'justification': justification, 'raw': response}
 
 
@@ -256,13 +269,14 @@ def mistral(board, state):
     return state['response']['move']
 
 
-def openai(model_id, prompt):
+def openai(model_id, prompt, temperature):
     """
     Query an LLM hosted by OpenAI
 
     Source: https://platform.openai.com/docs/api-reference/making-requests
     Get token at: https://platform.openai.com/api-keys
     """
+    # ignores temperature for now
     url = "https://api.openai.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"}
     response = requests.post(url, headers=headers, json={
