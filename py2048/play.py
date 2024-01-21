@@ -11,8 +11,14 @@ https://github.com/inishchith/2048
 import random
 from math import log, ceil
 import argparse
+import itertools
 import functools
 import csv
+
+
+#######
+# CLI #
+#######
 
 
 PLAYERS = {}
@@ -28,19 +34,19 @@ def register(f):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-a', '--agent', default=[], action='append')
-    parser.add_argument('-n', '--num_trials', default=10, type=int)
-    parser.add_argument('-s', '--stat', default=['score', 'largest'], action='append')
+    parser.add_argument('agent', default=[], nargs='*', choices=list(PLAYERS.keys()) + ['all'], help="Which agents to run. Use 'user' to play yourself")
+    parser.add_argument('-n', '--num_trials', default=10, type=int, help="How many trials to run for each agent. 'user' is only run once.")
+    parser.add_argument('-s', '--stat', default=['score', 'largest'], action='append', help="Which statistics to report.")
     args = parser.parse_args()
-
-    if not args.agent or 'user' in args.agent:
-        play(player=lambda board: input('[wasd]:'), ui=True)
-        return
 
     with open('results.csv', 'w') as f:
         writer = None
         for name, player in PLAYERS.items():
-            statistics = get_play_score(player, args.num_trials, args.stat)
+            should_execute = name in args.agent or ('all' in args.agent and name != 'user')
+            if not should_execute:
+                continue
+            num_trials = 1 if name == 'user' else args.num_trials
+            statistics = get_play_score(player, num_trials, args.stat)
             print(f"{name}: {statistics}")
             if writer is None:
                 writer = csv.DictWriter(f, sorted(statistics.keys()))
@@ -50,8 +56,10 @@ def main():
 
 def get_play_score(player, num_trials, stats=('score', 'largest')):
     """Calculate statistics (min/mean/max)"""
-    final = {}
-    info = [play(player, ui=False) for _ in range(num_trials)]
+    print(num_trials)
+    random.seed(123)
+    final = {'name': player.__name__}
+    info = [play(player) for _ in range(num_trials)]
     for stat in stats:
         scores = [item[stat] for item in info]
         final[f"{stat}_avg"] = sum(scores) / float(len(scores))
@@ -60,20 +68,90 @@ def get_play_score(player, num_trials, stats=('score', 'largest')):
     return final
 
 
-def play(player, ui=True):
+def show(board, pretty=False):
+    """Pretty print the board.
+    
+    >>> board = make_board()
+    >>> populate_sample_board(board)
+    >>> board[3][3] = 128
+    >>> show(board, pretty=True)
+    |0  |0  |0  |0  |
+    |0  |2  |0  |0  |
+    |0  |0  |8  |4  |
+    |0  |0  |2  |128|
+    """
+    hsep = '|' if pretty else ''
+    ndigits = ceil(log(largest(board)) / log(10))
+    for row in board:
+        print(hsep + hsep.join([
+            str(item if item != 0 else '').ljust(ndigits)
+            for item in row
+        ]) + hsep)
+
+
+@register
+def user(board):
+    show(board, pretty=True)
+    while (move := input('[wasd]:')) not in ('w', 'a', 's', 'd'):
+        pass
+    return move
+
+
+##########
+# AGENTS #
+##########
+
+
+state = {}
+
+
+@register
+def alwaysdown(board):
+    return 'd'
+
+
+@register
+def cycleas(board):
+    state['index'] = (state.get('index', 0) + 1) % 2
+    return 'sa'[state['index']]
+
+
+@register
+def cyclewasd(board):
+    state['index'] = (state.get('index', 0) + 1) % 4
+    return 'wasd'[state['index']]
+
+
+@register
+def cycleadws(board):
+    state['index'] = (state.get('index', 0) + 1) % 4
+    return 'adws'[state['index']]
+
+
+@register
+def trulyrandom(board):
+    return random.choice('wasd')
+
+
+########
+# GAME #
+########
+
+
+def play(player):
     """Play game of 2048 with user."""
     board = make_board()
     state = {'score': 0}
     while not is_full(board):
         spawn(board)
-        if ui:
-            show(board, pretty=True)
-        while (move := player(board)) not in ('w', 'a', 's', 'd'):
-            pass
-        board = shift(board, move, state)
+        board = shift(board, player(board), state)
     state['board'] = board
     state['largest'] = largest(board)
     return state
+
+
+def largest(board):
+    return max(max(row) for row in board)
 
 
 def make_board(D=4):
@@ -126,28 +204,6 @@ def shift(board, direction, state={}):
     raise NotImplementedError('Invalid move')
 
 
-def largest(board):
-    return max(max(row) for row in board)
-
-
-def show(board, pretty=False):
-    """Pretty print the board.
-    
-    >>> board = make_board()
-    >>> populate_sample_board(board)
-    >>> board[3][3] = 128
-    >>> show(board, pretty=True)
-    |0  |0  |0  |0  |
-    |0  |2  |0  |0  |
-    |0  |0  |8  |4  |
-    |0  |0  |2  |128|
-    """
-    hsep = '|' if pretty else ''
-    ndigits = ceil(log(largest(board)) / log(10))
-    for row in board:
-        print(hsep + hsep.join([str(item).ljust(ndigits) for item in row]) + hsep)
-
-
 def rotate(board, cw=True):
     """
     Rotate the board by 90˚. By default, clockwise.
@@ -177,7 +233,8 @@ def rotate(board, cw=True):
 
 
 def shift_left(board, state={}):
-    """
+    """Shifts elements to the left, merging equal adjacent elements.
+    
     >>> board = make_board()
     >>> populate_sample_board(board)
     >>> show(shift_left(board))
@@ -188,43 +245,42 @@ def shift_left(board, state={}):
     >>> board = make_board()  # test merge
     >>> board[0][0] = board[0][1] = 2
     >>> board[0][2] = board[0][3] = 4
+    >>> board[1][0] = board[1][2] = board[1][3] = 2
     >>> show(shift_left(board))
     4800
-    0000
+    4200
     0000
     0000
     """
     new_board = []
     for row in board:
         new_row = []
-        candidate = 0
+        merged = False  # Flag to track if merging occurred
+
         for item in row:
-            if candidate != 0 and item == candidate:
-                new_row.append(candidate * 2)
-                state['score'] = state.get('score', 0) + candidate * 2
-                candidate = 0
-            else:
-                if candidate != 0:
-                    new_row.append(candidate)
-                candidate = item
+            if not merged and item and new_row and item == new_row[-1]:  # Check for merge
+                new_row[-1] *= 2  # Merge elements
+                state['score'] = state.get('score', 0) + new_row[-1]
+                merged = True
+            elif item or merged:  # Add non-zero or after merge
+                new_row.append(item)
+                merged = False
 
-        if candidate != 0:
-            new_row.append(candidate)
-
-        for _ in range(len(new_row), 4):
-            new_row.append(0)
-        
+        new_row += [0] * (4 - len(new_row))  # Pad with zeros
         new_board.append(new_row)
+
     return new_board
 
 
 def spawn(board):
-    cells = []
-    for row in range(4):
-        for col in range(4):
-            if board[row][col] == 0:
-                cells.append((row, col))
-    row, col = random.choice(cells)
+    """
+    Spawn 2 with 90% probability or a 4 with 10% probability in a randomly-
+    selected empty cell.
+    """
+    row, col = random.choice([
+        (row, col) for row, col in itertools.product(range(4), range(4))
+        if board[row][col] == 0
+    ])
     board[row][col] = 2 if random.random() <= 0.9 else 4
 
 
@@ -247,42 +303,6 @@ def populate_sample_board(board):
     board[1][1] = board[3][2] = 2
     board[2][3] = 4
     board[2][2] = board[3][3] = 8
-
-
-##########
-# AGENTS #
-##########
-
-
-state = {}
-
-
-@register
-def alwaysdown(board):
-    return 'd'
-
-
-@register
-def alwaysbottomdown(board):
-    state['index'] = (state.get('index', 0) + 1) % 2
-    return 'sa'[state['index']]
-
-
-@register
-def cyclewasd(board):
-    state['index'] = (state.get('index', 0) + 1) % 4
-    return 'wasd'[state['index']]
-
-
-@register
-def cycleadws(board):
-    state['index'] = (state.get('index', 0) + 1) % 4
-    return 'adws'[state['index']]
-
-
-@register
-def trulyrandom(board):
-    return random.choice('wasd')
 
 
 if __name__ == '__main__':
