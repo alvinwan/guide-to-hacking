@@ -14,6 +14,8 @@ import argparse
 from itertools import product
 import functools
 import csv
+import requests
+import os
 
 
 #######
@@ -67,7 +69,7 @@ def get_play_score(player, num_trials, stats=('score', 'largest')):
     return final
 
 
-def show(board, pretty=False):
+def stringify(board, pretty=False):
     """Pretty print the board.
     
     >>> board = make_board()
@@ -82,11 +84,17 @@ def show(board, pretty=False):
     blank = '' if pretty else 0
     hsep = '|' if pretty else ''
     ndigits = ceil(log(largest(board)) / log(10))
+    string = ''
     for row in board:
-        print(hsep + hsep.join([
+        string += hsep + hsep.join([
             str(item if item != 0 else blank).ljust(ndigits)
             for item in row
-        ]) + hsep)
+        ]) + hsep + '\n'
+    return string
+
+
+def show(board, pretty=False):
+    print(stringify(board, pretty))
 
 
 @register
@@ -131,6 +139,65 @@ def cycleadws(board):
 @register
 def trulyrandom(board):
     return random.choice('wasd')
+
+
+PROMPT = """
+Let's play 2048. Give me one of four possible commands: 'w' for up, 'a' for left, 's' for down, or 'd' for right. Do not include extraneous text.
+
+Here are examples:
+
+===
+
+Me:
+|   |   |   |   |
+|   |2  |   |   |
+|   |   |8  |4  |
+|   |   |2  |128|
+
+You: d
+
+Me:
+|  |  |  |  |
+|  |  |  |2 |
+|4 |2 |2 |  |
+|16|8 |16|2 |
+
+You: s
+
+===
+
+Here is the board:
+{board}
+
+You:"""
+
+
+def huggingface(model_id, prompt):
+    """
+    Query an LLM hosted on Huggingface
+    
+    Source: https://huggingface.co/docs/api-inference/quicktour
+    Get token at: https://huggingface.co/settings/tokens
+    """
+    url = f"https://api-inference.huggingface.co/models/{model_id}"
+    headers = {"Authorization": f"Bearer {os.environ['HUGGINGFACE_API_KEY']}"}
+    response = requests.post(url, headers=headers, json={'inputs': prompt})
+    text = response.json()[0]['generated_text'].replace(prompt, '')
+    return text
+
+
+def get_huggingface_move(model_id, board):
+    """
+    Query an LLM hosted on Huggingface for its 2048 move.
+    """
+    prompt = PROMPT.format(board=stringify(board, pretty=True))
+    response = huggingface(model_id, prompt)
+    return response.strip()[0]
+
+
+@register
+def openchat(board):
+    return get_huggingface_move('openchat/openchat-3.5-0106', board)
 
 
 ########
@@ -271,7 +338,7 @@ def shift_left(board, state={}):
             elif item or merged:  # Add non-zero or after merge
                 row[col] = item
                 merged = False
-                index += 1
+                col += 1
 
         for i in range(col, 4):  # Pad the rest with zeros
             row[i] = 0
