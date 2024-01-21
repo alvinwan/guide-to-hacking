@@ -11,7 +11,7 @@ https://github.com/inishchith/2048
 import random
 from math import log, ceil
 import argparse
-import itertools
+from itertools import product
 import functools
 import csv
 
@@ -56,7 +56,6 @@ def main():
 
 def get_play_score(player, num_trials, stats=('score', 'largest')):
     """Calculate statistics (min/mean/max)"""
-    print(num_trials)
     random.seed(123)
     final = {'name': player.__name__}
     info = [play(player) for _ in range(num_trials)]
@@ -75,16 +74,17 @@ def show(board, pretty=False):
     >>> populate_sample_board(board)
     >>> board[3][3] = 128
     >>> show(board, pretty=True)
-    |0  |0  |0  |0  |
-    |0  |2  |0  |0  |
-    |0  |0  |8  |4  |
-    |0  |0  |2  |128|
+    |   |   |   |   |
+    |   |2  |   |   |
+    |   |   |8  |4  |
+    |   |   |2  |128|
     """
+    blank = '' if pretty else 0
     hsep = '|' if pretty else ''
     ndigits = ceil(log(largest(board)) / log(10))
     for row in board:
         print(hsep + hsep.join([
-            str(item if item != 0 else '').ljust(ndigits)
+            str(item if item != 0 else blank).ljust(ndigits)
             for item in row
         ]) + hsep)
 
@@ -154,9 +154,9 @@ def largest(board):
     return max(max(row) for row in board)
 
 
-def make_board(D=4):
-    """Create empty DxD board. 4 is hard-coded everywhere, so really D=4."""
-    return [[0 for _ in range(D)] for _ in range(D)]  # make board
+def make_board():
+    """Create empty 4x4 board."""
+    return [[0 for _ in range(4)] for _ in range(4)]  # make board
 
 
 def is_full(board):
@@ -176,32 +176,40 @@ def shift(board, direction, state={}):
     2000
     8400
     2800
+    >>> board = make_board()
+    >>> populate_sample_board(board)
     >>> show(shift(board, 's'))  # down
     0000
     0000
     0084
     0228
+    >>> board = make_board()
+    >>> populate_sample_board(board)
     >>> show(shift(board, 'w'))  # up
     0284
     0028
     0000
     0000
+    >>> board = make_board()
+    >>> populate_sample_board(board)
     >>> show(shift(board, 'd'))  # right
     0000
     0002
     0084
     0028
     """
-    direction = direction.lower()
-    if direction == 'a':  # left
-        return shift_left(board, state)
-    if direction == 'w':  # up
-        return rotate(shift_left(rotate(board, False), state))
-    if direction == 'd':  # right
-        return rotate(rotate(shift_left(rotate(rotate(board)), state), False), False)
-    if direction == 's':  # down
-        return rotate(shift_left(rotate(board), state), False)
-    raise NotImplementedError('Invalid move')
+    directions = {'a': 0, 's': 1, 'd': 2, 'w': 3}
+    n = directions[direction.lower()]
+
+    for _ in range(n):  # rotate clockwise until we can shift left
+        board = rotate(board)
+
+    board = shift_left(board, state)  # shift left
+
+    for _ in range(n):  # rotate counterclockwise back to original orientation
+        board = rotate(board, False)
+
+    return board
 
 
 def rotate(board, cw=True):
@@ -224,11 +232,10 @@ def rotate(board, cw=True):
     0028
     """
     new_board = make_board()
-    for row in range(4):
-        for col in range(4):
-            nrow = col      if cw else 3 - col
-            ncol = 3 - row  if cw else row
-            new_board[nrow][ncol] = board[row][col]
+    for row, col in product(range(4), range(4)):
+        nrow = col      if cw else 3 - col  # Calculate new row index
+        ncol = 3 - row  if cw else row  # Calculate new col index
+        new_board[nrow][ncol] = board[row][col]  # Copy element to new pos
     return new_board
 
 
@@ -252,24 +259,23 @@ def shift_left(board, state={}):
     0000
     0000
     """
-    new_board = []
     for row in board:
-        new_row = []
+        col = 0  # Column index, as we move left to right along the row
         merged = False  # Flag to track if merging occurred
 
         for item in row:
-            if not merged and item and new_row and item == new_row[-1]:  # Check for merge
-                new_row[-1] *= 2  # Merge elements
-                state['score'] = state.get('score', 0) + new_row[-1]
+            if not merged and item and col > 0 and row[col - 1] == item:  # Check for merge
+                row[col - 1] *= 2  # Merge elements
+                state['score'] = state.get('score', 0) + row[col - 1]
                 merged = True
             elif item or merged:  # Add non-zero or after merge
-                new_row.append(item)
+                row[col] = item
                 merged = False
+                index += 1
 
-        new_row += [0] * (4 - len(new_row))  # Pad with zeros
-        new_board.append(new_row)
-
-    return new_board
+        for i in range(col, 4):  # Pad the rest with zeros
+            row[i] = 0
+    return board
 
 
 def spawn(board):
@@ -278,7 +284,7 @@ def spawn(board):
     selected empty cell.
     """
     row, col = random.choice([
-        (row, col) for row, col in itertools.product(range(4), range(4))
+        (row, col) for row, col in product(range(4), range(4))
         if board[row][col] == 0
     ])
     board[row][col] = 2 if random.random() <= 0.9 else 4
