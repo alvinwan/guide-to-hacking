@@ -146,12 +146,7 @@ def user(board, state):
 
 
 @register
-def alwaysdown(board, state):
-    return 'd'
-
-
-@register
-def cycleas(board, state):
+def cyclewd(board, state):
     state['index'] = (state.get('index', 0) + 1) % 2
     return 'sa'[state['index']]
 
@@ -163,13 +158,12 @@ def cyclewasd(board, state):
 
 
 @register
-def cycleadws(board, state):
-    state['index'] = (state.get('index', 0) + 1) % 4
-    return 'adws'[state['index']]
+def randomwd(board, state):
+    return random.choice('wd')
 
 
 @register
-def trulyrandom(board, state):
+def randomwasd(board, state):
     return random.choice('wasd')
 
 
