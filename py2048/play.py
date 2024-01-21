@@ -228,31 +228,60 @@ def huggingface(model_id, prompt):
     return response[0]['generated_text'].replace(prompt, '')
 
 
-def get_huggingface_move(model_id, board):
+def get_move(model, model_id, board):
     """
     Query an LLM hosted on Huggingface for its 2048 move.
     """
     prompt = PROMPT.format(board=stringify(board, pretty=True))
-    response = huggingface(model_id, prompt)
+    response = model(model_id, prompt)
     move, justification = response.split('---')[0].strip().split('\n', 1)
     return {'move': move.strip()[0], 'justification': justification, 'raw': response}
 
 
 @register
 def openchat(board, state):
-    state['response'] = get_huggingface_move('openchat/openchat-3.5-0106', board)
+    state['response'] = get_move(huggingface, 'openchat/openchat-3.5-0106', board)
     return state['response']['move']
 
 
 @register
 def mixtral(board, state):
-    state['response'] = get_huggingface_move('mistralai/Mixtral-8x7B-Instruct-v0.1', board)
+    state['response'] = get_move(huggingface, 'mistralai/Mixtral-8x7B-Instruct-v0.1', board)
     return state['response']['move']
 
 
 @register
 def mistral(board, state):
-    state['response'] = get_huggingface_move('mistralai/Mistral-7B-Instruct-v0.2', board)
+    state['response'] = get_move(huggingface, 'mistralai/Mistral-7B-Instruct-v0.2', board)
+    return state['response']['move']
+
+
+def openai(model_id, prompt):
+    """
+    Query an LLM hosted by OpenAI
+
+    Source: https://platform.openai.com/docs/api-reference/making-requests
+    Get token at: https://platform.openai.com/api-keys
+    """
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"}
+    response = requests.post(url, headers=headers, json={
+        'model': model_id,
+        'messages': [{'role': 'user', 'content': prompt}],
+    })
+    response = response.json()
+    return response['choices'][0]['message']['content']
+
+
+@register
+def chatgpt3(board, state):
+    state['response'] = get_move(openai, 'gpt-3.5-turbo', board)
+    return state['response']['move']
+
+
+@register
+def chatgpt4(board, state):
+    state['response'] = get_move(openai, 'gpt-4', board)
     return state['response']['move']
 
 
