@@ -16,6 +16,7 @@ import functools
 import csv
 import requests
 import os
+import time
 
 
 #######
@@ -41,7 +42,15 @@ def main():
     parser.add_argument('-s', '--stat', default=['score', 'largest'], action='append', help="Which statistics to report.")
     args = parser.parse_args()
 
-    with open('results.csv', 'w') as f:
+    should_write_headers = False
+    if not os.path.exists('results.csv'):
+        should_write_headers = True
+    else:
+        with open('results.csv') as f:
+            if not f.read().strip():
+                should_write_headers = True
+
+    with open('results.csv', 'a') as f:
         writer = None
         for name, player in PLAYERS.items():
             should_execute = name in args.agent or ('all' in args.agent and name != 'user')
@@ -52,21 +61,45 @@ def main():
             print(f"{name}: {statistics}")
             if writer is None:
                 writer = csv.DictWriter(f, sorted(statistics.keys()))
-                writer.writeheader()
+                if should_write_headers:
+                    writer.writeheader()
             writer.writerow(statistics)
 
 
 def get_play_score(player, num_trials, stats=('score', 'largest')):
     """Calculate statistics (min/mean/max)"""
     random.seed(123)
-    final = {'name': player.__name__}
-    info = [play(player) for _ in range(num_trials)]
+    final = {
+        'name': player.__name__,
+        'path': f"out/{player.__name__}-{time.time()}.md",
+        'num_trials': num_trials,
+    }
+    logger = get_game_logger(final['path'])
+    info = [play(player, callback=logger) for _ in range(num_trials)]
     for stat in stats:
         scores = [item[stat] for item in info]
         final[f"{stat}_avg"] = sum(scores) / float(len(scores))
         final[f"{stat}_max"] = max(scores)
         final[f"{stat}_min"] = min(scores)
     return final
+
+
+def get_game_logger(path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'a') as f:
+        # write frontmatter
+        f.write(f"---\nTime: {time.time()}\n---\n\n")
+
+    def log_game_move(move, board, state):
+        # write move data
+        with open(path, 'a') as f:
+            f.write('---\n\n')
+            f.write(f"Game:\n```\n{stringify(board, pretty=True)}```\n\n")
+            f.write(f"Move: {move}\n\n")
+            f.write(f"Score: {state['score']}\n\n")
+            if 'response' in state:
+                f.write(f"Justification:\n```\n{state['response']['justification']}\n```\n\n")
+    return log_game_move
 
 
 def stringify(board, pretty=False):
@@ -98,7 +131,7 @@ def show(board, pretty=False):
 
 
 @register
-def user(board):
+def user(board, state):
     show(board, pretty=True)
     while (move := input('[wasd]:')) not in ('w', 'a', 's', 'd'):
         pass
@@ -110,63 +143,70 @@ def user(board):
 ##########
 
 
-state = {}
-
-
 @register
-def alwaysdown(board):
+def alwaysdown(board, state):
     return 'd'
 
 
 @register
-def cycleas(board):
+def cycleas(board, state):
     state['index'] = (state.get('index', 0) + 1) % 2
     return 'sa'[state['index']]
 
 
 @register
-def cyclewasd(board):
+def cyclewasd(board, state):
     state['index'] = (state.get('index', 0) + 1) % 4
     return 'wasd'[state['index']]
 
 
 @register
-def cycleadws(board):
+def cycleadws(board, state):
     state['index'] = (state.get('index', 0) + 1) % 4
     return 'adws'[state['index']]
 
 
 @register
-def trulyrandom(board):
+def trulyrandom(board, state):
     return random.choice('wasd')
 
 
 PROMPT = """
-Let's play 2048. Give me one of four possible commands: 'w' for up, 'a' for left, 's' for down, or 'd' for right. Do not include extraneous text.
+Let's play 2048. In your response, the first line is one of four possible commands: 'w' for up, 'a' for left, 's' for down, or 'd' for right. Do not include extraneous text in this first line. After the first line, include justification for your move step-by-step. Be succinct.
 
 Here are examples:
 
-===
+---
 
-Me:
+Game:
 |   |   |   |   |
 |   |2  |   |   |
 |   |   |8  |4  |
-|   |   |2  |128|
+|   |2  |4  |128|
 
-You: d
+You:
+s
+There are two 2s that can be merged with an up or down.
+If I merge down, I get a 4 that can be merged horizontally, in the last row, on the next turn.
 
-Me:
+---
+
+Game:
 |  |  |  |  |
-|  |  |  |2 |
-|4 |2 |2 |  |
-|16|8 |16|2 |
+|  |  |  |4 |
+|4 |2 |4 |  |
+|16|16|8 |4 |
 
-You: s
+You:
+a
+There are two 4s that can be merged with a down or up
+There are also two 16s that can be merged with a left or right.
+Since 16 > 4, I consider left or right.
+If I merge right, this will additionally place 3 4s directly on top of each other.
 
-===
+---
 
-Here is the board:
+Game:
 {board}
 
 You:"""
@@ -182,8 +222,10 @@ def huggingface(model_id, prompt):
     url = f"https://api-inference.huggingface.co/models/{model_id}"
     headers = {"Authorization": f"Bearer {os.environ['HUGGINGFACE_API_KEY']}"}
     response = requests.post(url, headers=headers, json={'inputs': prompt})
-    text = response.json()[0]['generated_text'].replace(prompt, '')
-    return text
+    response = response.json()
+    if 'error' in response:
+        raise RuntimeError(response['error'])
+    return response[0]['generated_text'].replace(prompt, '')
 
 
 def get_huggingface_move(model_id, board):
@@ -192,12 +234,32 @@ def get_huggingface_move(model_id, board):
     """
     prompt = PROMPT.format(board=stringify(board, pretty=True))
     response = huggingface(model_id, prompt)
-    return response.strip()[0]
+    move, justification = response.split('---')[0].strip().split('\n', 1)
+    return {'move': move.strip()[0], 'justification': justification, 'raw': response}
 
 
 @register
-def openchat(board):
-    return get_huggingface_move('openchat/openchat-3.5-0106', board)
+def openchat(board, state):
+    state['response'] = get_huggingface_move('openchat/openchat-3.5-0106', board)
+    return state['response']['move']
+
+
+@register
+def mixtral(board, state):
+    state['response'] = get_huggingface_move('mistralai/Mixtral-8x7B-Instruct-v0.1', board)
+    return state['response']['move']
+
+
+@register
+def llama2(board, state):
+    state['response'] = get_huggingface_move('meta-llama/Llama-2-70b-chat-hf', board)
+    return state['response']['move']
+
+
+@register
+def mistral(board, state):
+    state['response'] = get_huggingface_move('mistralai/Mistral-7B-Instruct-v0.2', board)
+    return state['response']['move']
 
 
 ########
@@ -205,13 +267,15 @@ def openchat(board):
 ########
 
 
-def play(player):
+def play(player, callback=lambda move, board, state: None):
     """Play game of 2048 with user."""
     board = make_board()
     state = {'score': 0}
     while not is_full(board):
         spawn(board)
-        board = shift(board, player(board), state)
+        move = player(board, state)
+        callback(move, board, state)
+        board = shift(board, move, state)
     state['board'] = board
     state['largest'] = largest(board)
     return state
