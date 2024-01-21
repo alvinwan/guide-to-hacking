@@ -11,37 +11,53 @@ https://github.com/inishchith/2048
 import random
 from math import log, ceil
 import argparse
+import functools
+import csv
+
+
+PLAYERS = {}
+
+def register(f):
+    PLAYERS[f.__name__] = f
+
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        return f(*args, **kwargs)
+    return wrapper
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--agent', default='user')
+    parser.add_argument('-a', '--agent', default=[], action='append')
     parser.add_argument('-n', '--num_trials', default=10, type=int)
-    parser.add_argument('-s', '--stat', default='score')
+    parser.add_argument('-s', '--stat', default=['score', 'largest'], action='append')
     args = parser.parse_args()
 
-    if args.agent == 'user':
-        player = lambda board: input('[wasd]:')
-        play(player, ui=True)
+    if not args.agent or 'user' in args.agent:
+        play(player=lambda board: input('[wasd]:'), ui=True)
         return
-    if 'alwaysdown' in args.agent:
-        player = lambda board: 'd' # score: 200/492, largest: 19/32 (avg/max) over 10k iters
-        print(f"alwaysdown: {get_play_score(player, args.num_trials, args.stat):.2f}")
-    if 'trulyrandom' in args.agent:
-        player = trulyrandom # score: 612/2300, largest: 67/256 (avg/max) over 10k iters
-        print(f"trulyrandom: {get_play_score(player, args.num_trials, args.stat):.2f}")
-    if 'cycleadws' in args.agent:
-        player = cycleadws # score: 791/2988, largest: 80/256 (avg/max) over 10k iters
-        print(f"cyclewasd: {get_play_score(player, args.num_trials, args.stat):.2f}")
-    if 'cyclewasd' in args.agent:
-        player = cyclewasd # score: 1840/6400, largest: 175/512 (avg/max) over 10k iters
-        print(f"cyclewasd: {get_play_score(player, args.num_trials, args.stat):.2f}")
-    
 
-def get_play_score(player, num_trials, stat='score'):
-    scores = [play(player, ui=False)[stat] for _ in range(num_trials)]
-    return sum(scores) / float(len(scores))
-    # return max(scores)
+    with open('results.csv', 'w') as f:
+        writer = None
+        for name, player in PLAYERS.items():
+            statistics = get_play_score(player, args.num_trials, args.stat)
+            print(f"{name}: {statistics}")
+            if writer is None:
+                writer = csv.DictWriter(f, sorted(statistics.keys()))
+                writer.writeheader()
+            writer.writerow(statistics)
+
+
+def get_play_score(player, num_trials, stats=('score', 'largest')):
+    """Calculate statistics (min/mean/max)"""
+    final = {}
+    info = [play(player, ui=False) for _ in range(num_trials)]
+    for stat in stats:
+        scores = [item[stat] for item in info]
+        final[f"{stat}_avg"] = sum(scores) / float(len(scores))
+        final[f"{stat}_max"] = max(scores)
+        final[f"{stat}_min"] = min(scores)
+    return final
 
 
 def play(player, ui=True):
@@ -241,16 +257,30 @@ def populate_sample_board(board):
 state = {}
 
 
+@register
+def alwaysdown(board):
+    return 'd'
+
+
+@register
+def alwaysbottomdown(board):
+    state['index'] = (state.get('index', 0) + 1) % 2
+    return 'sa'[state['index']]
+
+
+@register
 def cyclewasd(board):
     state['index'] = (state.get('index', 0) + 1) % 4
     return 'wasd'[state['index']]
 
 
+@register
 def cycleadws(board):
     state['index'] = (state.get('index', 0) + 1) % 4
     return 'adws'[state['index']]
 
 
+@register
 def trulyrandom(board):
     return random.choice('wasd')
 
