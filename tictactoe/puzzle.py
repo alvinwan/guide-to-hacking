@@ -5,6 +5,9 @@ Find initial states that have exactly one path to victory.
 from typing import List
 from dataclasses import dataclass, field
 from collections import defaultdict
+import matplotlib.pyplot as plt
+import seaborn as sns
+import argparse
 
 
 ##############
@@ -86,6 +89,12 @@ def agent_basic(moves, recurse=True):
     yield from get_empty_cells(moves)
 
 
+AGENTS = {
+    'any': agent_any,
+    'basic': agent_basic,
+}
+
+
 ###########
 # SOLVING #
 ###########
@@ -108,7 +117,7 @@ def solve_board(node, agent=agent_basic):
         moves = node.moves + move
         child = Node({}, moves, get_winner(moves))
         node.children[move] = child
-        solve_board(child)
+        solve_board(child, agent=agent)
 
 
 length_to_moves = defaultdict(set)
@@ -187,8 +196,28 @@ def play(node, you=lambda node: input('> '), enemy=lambda node: next(agent_min_l
 
 def find_definite_victory():
     # TODO: move global `length_to_moves` into this function
+    print('='*5, 'States', '='*5)
+
     movess = sorted(length_to_moves[min(length_to_moves)])
-    print(f"Shortest definite victory states: {movess}")
+    print(f" * Shortest definite victory states: {','.join(movess)}")
+
+    prefix_to_moves = defaultdict(list)
+    for moves in movess:
+        prefix_to_moves[moves[:2]].append(moves)
+
+    prefix_to_probs = {}
+    for prefix, moves in prefix_to_moves.items():
+        prefix_to_probs[prefix] = len(moves) / 7. * 100.
+    
+    # # print(prefix_to_probs)
+    # plt.title('Moves to Definite Victory')
+    # plt.ylabel('Number of two-move states')
+    # plt.xlabel('Number of moves to definite victory')
+    # sns.histplot(list(map(len, prefix_to_moves.values())))
+    # plt.rcParams['svg.fonttype'] = 'path'
+    # plt.savefig('definite-victory-hist.jpg')
+    # breakpoint()
+    # plt.savefig('definite-victory-')
 
     prefixes = {moves[:2] for moves in movess}
     safe = set()
@@ -197,15 +226,39 @@ def find_definite_victory():
             if i != j:
                 if f"{i}{j}" not in prefixes:
                     safe.add(f"{i}{j}")
-    print(f"'Safe' prefixes: {sorted(safe)}")
+    print(len(list(sorted(safe))))
+    print(f" * 'Safe' prefixes: {','.join(sorted(safe))}")
+
+
+def print_outcomes(counts, switch=False):
+    print('='*5, 'Outcomes', '='*5)
+    nplayer1, nplayer2, nTie = counts
+    print(f" * Player 'O' win: {nplayer1}")
+    print(f" * Player 'X' win: {nplayer2}")
+    print(f" * Both tie: {nTie}")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--play', action='store_true')
+    parser.add_argument('--start', default='', help='Starting state')  # Interesting states: 30674, 01234, 014
+    parser.add_argument('--agent', default='basic', choices=AGENTS.keys(), help='Which agent to use, to compute outcomes for')
+    args = parser.parse_args()
+
+    if args.start:
+        print_board(args.start)
+
+    if args.play:
+        play(node)
+        return
+
+    node = Node(moves=args.start)
+    solve_board(node, agent=AGENTS[args.agent])
+    set_win_counts(node)
+    print_outcomes(node.counts)
+    find_definite_victory()
+    return node
 
 
 if __name__ == '__main__':
-    node = Node()
-    # node = Node(moves='30674')
-    # node = Node(moves='01234')
-    # node = Node(moves='014')
-    solve_board(node)
-    set_win_counts(node)
-    find_definite_victory()
-    play(node, switch=True)
+    node = main()
