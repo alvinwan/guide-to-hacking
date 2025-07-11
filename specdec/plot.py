@@ -30,6 +30,16 @@ plt.xlabel('Batch Size (s)', color='white')
 plt.ylabel('Arithmetic Intensity (FLOPS/Byte)', color='white')
 plt.grid(True, alpha=0.3, color='white')
 
+# Add some vertical padding to the plot
+plt.margins(y=0.1)
+
+# Add dotted line at y=153
+plt.axhline(y=153, color='white', linestyle='--', alpha=0.7)
+
+# Add compute and memory bound labels
+plt.text(9.9, 157, 'compute bound', color='white', fontsize=8, ha='right', va='bottom')
+plt.text(9.9, 148, 'memory bound', color='white', fontsize=8, ha='right', va='top')
+
 # Make tick labels white
 plt.xticks(color='white')
 plt.yticks(color='white')
