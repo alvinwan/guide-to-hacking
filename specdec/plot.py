@@ -49,5 +49,5 @@ for spine in plt.gca().spines.values():
     spine.set_color('white')
 
 # Save with transparent background
-plt.savefig('arithmetic_intensity.png', dpi=300, transparent=True, bbox_inches='tight')
+plt.savefig('arithmetic_intensity.svg', dpi=300, transparent=True, bbox_inches='tight')
 plt.close()  # Close the plot to free up memory
