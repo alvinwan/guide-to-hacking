@@ -48,6 +48,11 @@ plt.yticks(color='white')
 for spine in plt.gca().spines.values():
     spine.set_color('white')
 
+# NOTE: without this, fonts won't show up in browser
+import matplotlib as mpl
+mpl.rcParams['svg.fonttype'] = 'path'  # convert all text to paths
+mpl.rcParams['text.usetex'] = False
+
 # Save with transparent background
-plt.savefig('arithmetic_intensity.png', dpi=300, transparent=True, bbox_inches='tight')
+plt.savefig('arithmetic_intensity.svg', format='svg', dpi=300, transparent=True, bbox_inches='tight')
 plt.close()  # Close the plot to free up memory
